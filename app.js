@@ -607,9 +607,9 @@ function drawResponseCurve() {
   const mg = { t: 22, r: 56, b: 38, l: 50 };
   const iW = W - mg.l - mg.r, iH = H - mg.t - mg.b;
 
-  // Compute pump prices across Brent range €40-€140
+  // Compute pump prices across Brent range €40-€160
   const pts = [];
-  for (let b = 40; b <= 140; b += 1) {
+  for (let b = 40; b <= 160; b += 1) {
     const sc = computeSection3(b);
     pts.push({ brent: b, baseline: sc.baselinePump, corridor: sc.corrPump, excise: sc.corrExcise });
   }
@@ -619,7 +619,7 @@ function drawResponseCurve() {
   const eAll = pts.map(p => p.excise);
   const eMn = Math.min(...eAll) * 0.88, eMx = Math.max(...eAll) * 1.08;
 
-  const x = b => mg.l + ((b - 40) / 100) * iW;
+  const x = b => mg.l + ((b - 40) / 120) * iW;
   const yP = v => mg.t + iH - ((v - pMn) / (pMx - pMn || 1)) * iH;
   const yE = v => mg.t + iH - ((v - eMn) / (eMx - eMn || 1)) * iH;
 
@@ -646,7 +646,7 @@ function drawResponseCurve() {
 
   // Brent x-axis ticks
   let bTicks = "";
-  for (let b = 40; b <= 140; b += 10) {
+  for (let b = 40; b <= 160; b += 10) {
     bTicks += `<text class="tick" x="${x(b)}" y="${H - 10}" text-anchor="middle">€${b}</text>`;
   }
 
