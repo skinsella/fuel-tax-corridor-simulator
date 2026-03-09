@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=7" />
+    <link rel="stylesheet" href="./styles.css?v=8" />
   </head>
   <body>
     <div class="page">
@@ -286,6 +286,215 @@
         </div>
       </section>
 
+      <!-- ═══════════════════════════════════════════
+           SECTION 4 — IMPLEMENTATION
+           ═══════════════════════════════════════════ -->
+      <section class="section" id="implementation">
+        <div class="section-label"><span>4</span> Making it happen</div>
+        <h2>How Ireland could implement a corridor in 2026</h2>
+
+        <p class="section-intro">
+          A corridor stabiliser is not a new idea internationally, but Ireland
+          has never legislated one. Below is a practical roadmap for moving
+          from this prototype to an operational policy, based on current Irish
+          fiscal architecture and the legislative calendar.
+        </p>
+
+        <!-- TIMELINE -->
+        <div class="timeline">
+          <div class="timeline-step">
+            <div class="step-marker">Q2 2026</div>
+            <div class="step-content">
+              <h3>Government decision and design paper</h3>
+              <p>
+                Cabinet agrees in principle to a rule-based stabiliser. The
+                Department of Finance publishes a short design paper specifying
+                the corridor formula, the data source for the Brent reference
+                price, the adjustment coefficient, and the floor and ceiling
+                on excise movement. This paper should go to the Tax Strategy
+                Group for costing over summer.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-step">
+            <div class="step-marker">Q3 2026</div>
+            <div class="step-content">
+              <h3>Tax Strategy Group and fiscal scoring</h3>
+              <p>
+                The TSG scores the corridor against a baseline of unchanged
+                excise rates. Revenue Commissioners confirm that mineral oil
+                tax rates can be varied by Ministerial order under existing
+                provisions in Section 96 of the Finance Act 1999, or whether
+                a new enabling provision is needed. The Fiscal Advisory Council
+                assesses the contingent liability and its treatment under
+                fiscal rules.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-step">
+            <div class="step-marker">Oct 2026</div>
+            <div class="step-content">
+              <h3>Budget 2027 legislation</h3>
+              <p>
+                The corridor is legislated as part of the Finance Bill.
+                The Bill inserts a new section into the Mineral Oil Tax
+                provisions granting the Minister for Finance power to adjust
+                excise rates by statutory instrument when the trailing
+                four-week average Brent price in euro moves outside specified
+                bounds. The Oireachtas sets the upper and lower bounds and
+                the maximum adjustment per €1 of oil price movement.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-step">
+            <div class="step-marker">Jan 2027</div>
+            <div class="step-content">
+              <h3>Operational launch</h3>
+              <p>
+                Revenue Commissioners begin monthly (or fortnightly)
+                calculation of the corridor-adjusted excise rate based on
+                the trailing Brent average published by the Central Bank or
+                NEMO. Fuel distributors are notified of any rate change at
+                least 5 working days in advance. The adjusted rate takes
+                effect on the first of each month.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-step">
+            <div class="step-marker">Ongoing</div>
+            <div class="step-content">
+              <h3>Transparency and review</h3>
+              <p>
+                The Department of Finance publishes a monthly corridor
+                dashboard showing the current Brent reference, the excise
+                adjustment, and the cumulative fiscal impact. A statutory
+                review after two years assesses whether the corridor
+                parameters remain appropriate and whether the mechanism
+                should be extended or revised.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- DESIGN CHOICES -->
+        <div class="impl-section">
+          <h3>Key design choices for the legislation</h3>
+          <div class="impl-grid">
+            <article class="impl-card">
+              <h4>Reference price</h4>
+              <p>
+                A trailing 4-week average of ICE Brent in euro avoids
+                reacting to single-day spikes. The ECB EUR/USD reference
+                rate converts the dollar-denominated contract. The Central
+                Bank or NEMO can publish the calculated reference weekly.
+              </p>
+            </article>
+            <article class="impl-card">
+              <h4>Adjustment frequency</h4>
+              <p>
+                Monthly adjustment balances responsiveness against
+                administrative burden. Fortnightly would track shocks
+                faster but increases compliance cost for distributors.
+                The enabling provision should allow the Minister to move
+                to fortnightly by order if needed during a crisis.
+              </p>
+            </article>
+            <article class="impl-card">
+              <h4>Excise floor</h4>
+              <p>
+                The corridor should never reduce excise below zero or
+                below a minimum rate set in the legislation. EU Energy
+                Taxation Directive minima (€0.359/L for petrol, €0.330/L
+                for diesel) provide a natural floor. The floor protects
+                the environmental price signal embedded in fuel tax.
+              </p>
+            </article>
+            <article class="impl-card">
+              <h4>Sunset and review</h4>
+              <p>
+                A two-year sunset clause forces the Oireachtas to
+                actively renew the corridor. This prevents a temporary
+                measure becoming permanent without scrutiny and gives
+                the Fiscal Advisory Council a natural review point.
+              </p>
+            </article>
+            <article class="impl-card">
+              <h4>Carbon tax interaction</h4>
+              <p>
+                The corridor adjusts the mineral oil tax component only.
+                The carbon tax component continues on its legislated
+                trajectory to €100/tonne by 2030. This preserves the
+                carbon price signal while stabilising the discretionary
+                excise element.
+              </p>
+            </article>
+            <article class="impl-card">
+              <h4>Fiscal buffer</h4>
+              <p>
+                During periods when Brent is below the lower bound, the
+                corridor raises excise modestly. Revenue from these
+                periods should be ring-fenced in the National Oil
+                Reserves Agency or a dedicated stabilisation fund to
+                pre-fund the cost of future excise cuts.
+              </p>
+            </article>
+          </div>
+        </div>
+
+        <!-- WHAT'S NEEDED -->
+        <div class="impl-section">
+          <h3>What the Minister needs from officials</h3>
+          <div class="needs-grid">
+            <article class="need-card">
+              <div class="need-who">Department of Finance</div>
+              <p>
+                Formal costing paper with central, high-oil and low-oil
+                scenarios. Draft heads of Bill for the Finance Bill
+                corridor provisions. Confirmation of fiscal rules
+                treatment of the contingent liability.
+              </p>
+            </article>
+            <article class="need-card">
+              <div class="need-who">Revenue Commissioners</div>
+              <p>
+                Operational feasibility assessment for monthly rate
+                changes. IT systems readiness for automated rate
+                publication. Distributor notification protocol.
+              </p>
+            </article>
+            <article class="need-card">
+              <div class="need-who">DETE / NEMO</div>
+              <p>
+                Weekly publication of the EUR-denominated trailing Brent
+                average. Data feed to Revenue for automated calculation.
+              </p>
+            </article>
+            <article class="need-card">
+              <div class="need-who">Fiscal Advisory Council</div>
+              <p>
+                Assessment of the corridor's interaction with the
+                expenditure benchmark and the Medium-Term Objective.
+                Guidance on whether corridor costs should be treated
+                as cyclical or discretionary.
+              </p>
+            </article>
+          </div>
+        </div>
+
+        <div class="insight-strip">
+          <p>
+            The legislative vehicle exists: Section 96 of the Finance Act
+            1999 already allows mineral oil tax rates to be varied by
+            Ministerial order. The policy question is not whether the
+            mechanism is legally possible, but whether the government
+            wants a rule-based commitment rather than discretionary
+            intervention. The 2022 experience showed that ad-hoc cuts
+            are slower to start, politically difficult to reverse, and
+            more expensive than a calibrated automatic rule would have been.
+          </p>
+        </div>
+      </section>
+
       <!-- ─── FOOTER ─── -->
       <footer class="footer">
         <div class="footer-grid">
@@ -309,6 +518,6 @@
       </footer>
 
     </div>
-    <script src="./app.js?v=7"></script>
+    <script src="./app.js?v=8"></script>
   </body>
 </html>
