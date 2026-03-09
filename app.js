@@ -496,7 +496,7 @@ function drawCompFiscalChart(data) {
     <path d="${lp(cum.map((d,i)=>[x(i),y(d.cumAct)]))}" fill="none" stroke="var(--blue)" stroke-width="3" stroke-linecap="round"/>
     <path d="${lp(cum.map((d,i)=>[x(i),y(d.cumCorr)]))}" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round"/>
     ${xticks(cum, x, H)}
-    ${yticks(mn, mx, y, mg.l - 10, "€ cost")}
+    ${yticksMil(mn, mx, y, mg.l - 10, "€m")}
     ${leg([{c:"var(--blue)",l:"Actual cuts"},{c:"var(--green)",l:"Corridor"}], mg.l + 8, mg.t + 4)}
   `;
 }
@@ -531,6 +531,16 @@ function yticks(mn, mx, sy, xPos, label) {
   for (let i = 0; i <= 4; i++) {
     const v = mn + ((mx - mn) / 4) * i;
     o += `<text class="tick" x="${xPos}" y="${sy(v) + 4}" text-anchor="end">${v >= 10 ? Math.round(v) : v.toFixed(2)}</text>`;
+  }
+  return o;
+}
+
+function yticksMil(mn, mx, sy, xPos, label) {
+  let o = `<text class="axis-label" x="${xPos}" y="12" text-anchor="start">${label}</text>`;
+  for (let i = 0; i <= 4; i++) {
+    const v = mn + ((mx - mn) / 4) * i;
+    const display = Math.round(v / 1e6);
+    o += `<text class="tick" x="${xPos}" y="${sy(v) + 4}" text-anchor="end">${display}</text>`;
   }
   return o;
 }
