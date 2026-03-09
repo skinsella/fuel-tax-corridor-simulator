@@ -54,12 +54,12 @@ const VOL = {
 
 /* ── tax rate functions ── */
 
-// Full (pre-cut) excise rates
-const FULL = { petrol: 0.5877, diesel: 0.4257 };
+// Full (pre-cut) non-carbon excise rates (Revenue MOT Schedule 2)
+const FULL = { petrol: 0.54184, diesel: 0.4257 };
 
-// CO₂ factors: petrol 2.302 kg/L, diesel 2.676 kg/L
+// CO₂ factors: petrol 2.314 kg/L, diesel 2.676 kg/L (Revenue Schedule 2A)
 function carbonTax(y, m, fuel) {
-  const co2 = fuel === "petrol" ? 2.302 : 2.676;
+  const co2 = fuel === "petrol" ? 2.314 : 2.676;
   let r;
   if (y < 2019 || (y === 2019 && m < 9)) r = 20;
   else if (y === 2019 || (y === 2020 && m < 9)) r = 26;
@@ -71,15 +71,23 @@ function carbonTax(y, m, fuel) {
   return (r / 1000) * co2;
 }
 
-// Actual excise (with March 2022 cuts and phased restoration)
+// Actual excise (with March 2022 cuts and four-step restoration through Aug 2024)
 function actualExcise(y, m, fuel) {
   const f = FULL[fuel];
-  const cuts = fuel === "petrol"
-    ? [0.20, 0.12, 0.06]   // 20c cut → +8c → +6c → full
-    : [0.15, 0.095, 0.0475];
-  if ((y === 2022 && m >= 2) || (y === 2023 && m <= 4)) return f - cuts[0];
-  if (y === 2023 && m >= 5 && m <= 7) return f - cuts[1];
-  if (y === 2023 && m === 8) return f - cuts[2];
+  const isPetrol = fuel === "petrol";
+  // Full cut: Mar 2022 – May 2023
+  if ((y === 2022 && m >= 2) || (y === 2023 && m <= 4))
+    return f - (isPetrol ? 0.20 : 0.15);
+  // 1st restoration Jun–Aug 2023: +6c petrol, +5c diesel
+  if (y === 2023 && m >= 5 && m <= 7)
+    return f - (isPetrol ? 0.14 : 0.10);
+  // 2nd restoration Sep 2023–Mar 2024: +7c petrol, +5c diesel
+  if ((y === 2023 && m >= 8) || (y === 2024 && m <= 2))
+    return f - (isPetrol ? 0.07 : 0.05);
+  // 3rd restoration Apr–Jul 2024: +4c petrol, +3c diesel
+  if (y === 2024 && m >= 3 && m <= 6)
+    return f - (isPetrol ? 0.03 : 0.02);
+  // Full rate restored Aug 2024
   return f;
 }
 
@@ -262,9 +270,9 @@ function estimateWholesale(brent, fuel) {
   return Math.max(0.20, m.alpha + m.beta * brent);
 }
 
-// Carbon tax for 2026: €71/tonne (Budget 2025 trajectory to €100 by 2030)
+// Carbon tax for 2026: €71/tonne (Budget 2026 trajectory to €100 by 2030)
 const CARBON_2026 = {
-  petrol: (71 / 1000) * 2.302,  // 16.34 c/L
+  petrol: (71 / 1000) * 2.314,  // 16.43 c/L
   diesel: (71 / 1000) * 2.676,  // 19.00 c/L
 };
 
