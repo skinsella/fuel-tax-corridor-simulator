@@ -238,16 +238,18 @@ function render() {
 
   // Section 1
   const s1 = computeSection1();
-  // Average gap only during months the corridor is active (not dormant)
-  const activeGaps = s1.filter(d => Math.abs(d.corrExcise - FULL[S.fuel]) > 0.001).map(d => d.corrPump - d.baselinePump);
-  const avgGap = activeGaps.length > 0 ? avg(activeGaps) : 0;
+  // Average gap across all months (includes dormant months at zero)
+  const avgGap = avg(s1.map(d => d.corrPump - d.baselinePump));
   const volB = stdev(s1.map(d => d.baselinePump));
   const volC = stdev(s1.map(d => d.corrPump));
   const volChange = volB > 0 ? (1 - volC / volB) * 100 : 0;
 
   DOM.metricPumpGap.textContent = fmtCents(avgGap);
-  DOM.metricFill.textContent = fmtEuro(Math.max(0, -avgGap * 50));
-  DOM.metricDriver.textContent = fmtEuro(Math.max(0, -avgGap * 1300));
+  // Show actual value — negative gap = saving, positive gap = cost
+  const fillVal = -avgGap * 50;
+  const driverVal = -avgGap * 1300;
+  DOM.metricFill.textContent = fillVal >= 0 ? fmtEuro(fillVal) : `-${fmtEuro(Math.abs(fillVal))}`;
+  DOM.metricDriver.textContent = driverVal >= 0 ? fmtEuro(driverVal) : `-${fmtEuro(Math.abs(driverVal))}`;
   // Show volatility change — positive = reduced, negative = increased
   if (volChange >= 0) {
     DOM.metricVol.textContent = fmtPct(volChange);
