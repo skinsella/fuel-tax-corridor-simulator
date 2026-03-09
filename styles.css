@@ -434,6 +434,66 @@ svg {
   color: rgba(31,42,42,0.82);
 }
 
+/* ── section 3: scenarios ── */
+.section-intro {
+  margin: -12px 0 24px;
+  max-width: 68ch;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: rgba(31,42,42,0.74);
+}
+
+.scenario-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.scenario-slider-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+
+.scenario-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: center;
+}
+
+.preset {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.7);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.80rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+}
+
+.preset:hover {
+  background: rgba(31,42,42,0.06);
+}
+
+.preset.active {
+  background: var(--amber);
+  color: #fff;
+  border-color: var(--amber);
+}
+
+.scenario-metrics {
+  grid-template-columns: repeat(6, 1fr);
+  margin-bottom: 20px;
+}
+
 /* ── footer ── */
 .footer {
   margin-top: 16px;
@@ -472,8 +532,12 @@ svg {
     grid-template-columns: repeat(2, 1fr);
   }
   .comparison-intro,
-  .two-charts {
+  .two-charts,
+  .scenario-controls {
     grid-template-columns: 1fr;
+  }
+  .scenario-metrics {
+    grid-template-columns: repeat(3, 1fr);
   }
   .footer-grid {
     grid-template-columns: repeat(2, 1fr);

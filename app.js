@@ -123,6 +123,7 @@ const S = {
   lo: 55,
   hi: 75,
   coeff: 0.50,
+  scenarioBrent: 75,
 };
 
 /* ── DOM ── */
@@ -144,6 +145,13 @@ const DOM = {
   h2hMonthsActual: $("h2hMonthsActual"), h2hMonthsCorridor: $("h2hMonthsCorridor"),
   h2hEfficiencyActual: $("h2hEfficiencyActual"), h2hEfficiencyCorridor: $("h2hEfficiencyCorridor"),
   insightText: $("insightText"),
+  // Section 3
+  scenarioBrent: $("scenarioBrent"), scenarioBrentV: $("scenarioBrentValue"),
+  breakdownBrent: $("breakdownBrent"),
+  s3Status: $("s3Status"), s3Excise: $("s3Excise"),
+  s3PumpSaving: $("s3PumpSaving"), s3FillSaving: $("s3FillSaving"),
+  s3FiscalMonth: $("s3FiscalMonth"), s3FiscalYear: $("s3FiscalYear"),
+  responseCurve: $("responseCurve"), breakdownChart: $("breakdownChart"),
 };
 
 /* ── helpers ── */
@@ -227,6 +235,70 @@ function computeSection2() {
       corrActive: Math.abs(corrExc - full) > 0.001 ? 1 : 0,
     };
   });
+}
+
+/* ── wholesale-to-Brent regression (fitted from historical data) ── */
+
+function fitWholesaleModel(fuel) {
+  const xs = DATA.map(d => d.brent);
+  const ys = DATA.map(d => d[fuel + "Wholesale"]);
+  const n = xs.length;
+  const mx = avg(xs), my = avg(ys);
+  const num = sum(xs.map((x, i) => (x - mx) * (ys[i] - my)));
+  const den = sum(xs.map(x => (x - mx) ** 2));
+  const beta = den > 0 ? num / den : 0;
+  const alpha = my - beta * mx;
+  return { alpha, beta };
+}
+
+const wholesaleModel = {
+  petrol: fitWholesaleModel("petrol"),
+  diesel: fitWholesaleModel("diesel"),
+};
+
+function estimateWholesale(brent, fuel) {
+  const m = wholesaleModel[fuel];
+  return Math.max(0.20, m.alpha + m.beta * brent);
+}
+
+// Carbon tax for 2026: €71/tonne (Budget 2025 trajectory to €100 by 2030)
+const CARBON_2026 = {
+  petrol: (71 / 1000) * 2.302,  // 16.34 c/L
+  diesel: (71 / 1000) * 2.676,  // 19.00 c/L
+};
+
+// Consumption for 2026 scenario (projected)
+const VOL_2026 = { petrol: 1.65e9, diesel: 4.25e9 };
+
+/* ── compute section 3 (2026 scenario at a given Brent) ── */
+
+function computeSection3(brent) {
+  const f = S.fuel;
+  const full = FULL[f];
+  const w = estimateWholesale(brent, f);
+  const c = CARBON_2026[f];
+  const corrExc = corridorExcise(brent, f);
+
+  const baselinePump = (w + full + c) * (1 + VAT);
+  const corrPump = (w + corrExc + c) * (1 + VAT);
+  const pumpDelta = corrPump - baselinePump;
+  const monthlyVol = VOL_2026[f] / 12;
+
+  const fiscalPerMonth = (full - corrExc) * (1 + VAT) * monthlyVol;
+  const consumerPerMonth = Math.max(0, baselinePump - corrPump) * monthlyVol;
+
+  let status;
+  if (brent > S.hi) status = "Cutting excise";
+  else if (brent < S.lo) status = "Raising excise";
+  else status = "Dormant";
+
+  return {
+    brent, wholesale: w, carbon: c,
+    fullExcise: full, corrExcise: corrExc,
+    baselinePump, corrPump, pumpDelta,
+    fiscalPerMonth, fiscalPerYear: fiscalPerMonth * 12,
+    consumerPerMonth, status,
+  };
 }
 
 /* ── render everything ── */
@@ -316,6 +388,29 @@ function render() {
     insight += ` The corridor would have been active for ${monthsCorr} months versus ${monthsAct}, providing a longer but more graduated response.`;
   }
   DOM.insightText.textContent = insight;
+
+  // Section 3
+  renderSection3();
+}
+
+function renderSection3() {
+  DOM.scenarioBrentV.textContent = `€${S.scenarioBrent}/bbl`;
+  DOM.breakdownBrent.textContent = S.scenarioBrent;
+
+  const sc = computeSection3(S.scenarioBrent);
+
+  DOM.s3Status.textContent = sc.status;
+  DOM.s3Status.style.color = sc.status === "Cutting excise" ? "var(--green)"
+    : sc.status === "Raising excise" ? "var(--amber)" : "var(--muted)";
+  DOM.s3Excise.textContent = `${(sc.corrExcise * 100).toFixed(1)} c/L`;
+  DOM.s3PumpSaving.textContent = fmtCents(sc.pumpDelta);
+  const fillSave = -sc.pumpDelta * 50;
+  DOM.s3FillSaving.textContent = fillSave >= 0 ? fmtEuro(fillSave) : `-${fmtEuro(Math.abs(fillSave))}`;
+  DOM.s3FiscalMonth.textContent = fmtCurrency(sc.fiscalPerMonth);
+  DOM.s3FiscalYear.textContent = fmtCurrency(sc.fiscalPerYear);
+
+  drawResponseCurve();
+  drawBreakdownChart(sc);
 }
 
 /* ============================================================
@@ -504,6 +599,122 @@ function drawCompFiscalChart(data) {
   `;
 }
 
+/* ── Section 3: Response curve ── */
+
+function drawResponseCurve() {
+  const svg = DOM.responseCurve;
+  const W = 960, H = 340;
+  const mg = { t: 22, r: 56, b: 38, l: 50 };
+  const iW = W - mg.l - mg.r, iH = H - mg.t - mg.b;
+
+  // Compute pump prices across Brent range €40-€140
+  const pts = [];
+  for (let b = 40; b <= 140; b += 1) {
+    const sc = computeSection3(b);
+    pts.push({ brent: b, baseline: sc.baselinePump, corridor: sc.corrPump, excise: sc.corrExcise });
+  }
+
+  const pAll = pts.flatMap(p => [p.baseline, p.corridor]);
+  const pMn = Math.min(...pAll) * 0.96, pMx = Math.max(...pAll) * 1.02;
+  const eAll = pts.map(p => p.excise);
+  const eMn = Math.min(...eAll) * 0.88, eMx = Math.max(...eAll) * 1.08;
+
+  const x = b => mg.l + ((b - 40) / 100) * iW;
+  const yP = v => mg.t + iH - ((v - pMn) / (pMx - pMn || 1)) * iH;
+  const yE = v => mg.t + iH - ((v - eMn) / (eMx - eMn || 1)) * iH;
+
+  // Fill between baseline and corridor where corridor saves
+  let fill = "";
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (pts[i].corridor <= pts[i].baseline) {
+      fill += `<polygon points="${x(pts[i].brent)},${yP(pts[i].baseline)} ${x(pts[i+1].brent)},${yP(pts[i+1].baseline)} ${x(pts[i+1].brent)},${yP(pts[i+1].corridor)} ${x(pts[i].brent)},${yP(pts[i].corridor)}" fill="rgba(12,122,95,0.10)"/>`;
+    }
+  }
+
+  // Corridor band shading
+  const bandL = x(S.lo), bandR = x(S.hi);
+  const band = `<rect x="${bandL}" y="${mg.t}" width="${bandR - bandL}" height="${iH}" fill="rgba(109,112,109,0.06)" stroke="rgba(109,112,109,0.15)" stroke-dasharray="4 4"/>`;
+
+  // Scenario marker
+  const sx = x(S.scenarioBrent);
+  const marker = `
+    <line x1="${sx}" y1="${mg.t}" x2="${sx}" y2="${mg.t + iH}" stroke="var(--amber)" stroke-width="2" stroke-dasharray="6 3"/>
+    <circle cx="${sx}" cy="${yP(computeSection3(S.scenarioBrent).corrPump)}" r="6" fill="var(--green)" stroke="#fff" stroke-width="2"/>
+    <circle cx="${sx}" cy="${yP(computeSection3(S.scenarioBrent).baselinePump)}" r="6" fill="var(--blue)" stroke="#fff" stroke-width="2"/>
+    <text class="axis-label" x="${sx}" y="${mg.t - 6}" text-anchor="middle" fill="var(--amber)" font-weight="700">€${S.scenarioBrent}</text>
+  `;
+
+  // Brent x-axis ticks
+  let bTicks = "";
+  for (let b = 40; b <= 140; b += 10) {
+    bTicks += `<text class="tick" x="${x(b)}" y="${H - 10}" text-anchor="middle">€${b}</text>`;
+  }
+
+  svg.innerHTML = `
+    ${grid(W, H, mg, 4)}
+    ${band}
+    ${fill}
+    <path d="${lp(pts.map(p=>[x(p.brent),yP(p.baseline)]))}" fill="none" stroke="var(--blue)" stroke-width="3" stroke-linecap="round"/>
+    <path d="${lp(pts.map(p=>[x(p.brent),yP(p.corridor)]))}" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round"/>
+    <path d="${lp(pts.map(p=>[x(p.brent),yE(p.excise)]))}" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+    ${marker}
+    ${bTicks}
+    ${yticks(pMn, pMx, yP, mg.l - 10, "€/L pump")}
+    ${yticks(eMn, eMx, yE, W - mg.r + 10, "€/L excise")}
+    ${leg([{c:"var(--blue)",l:"Baseline pump"},{c:"var(--green)",l:"Corridor pump"},{c:"var(--amber)",l:"Excise rate (right)"}], mg.l + 8, mg.t + 6)}
+  `;
+}
+
+/* ── Section 3: Breakdown bar ── */
+
+function drawBreakdownChart(sc) {
+  const svg = DOM.breakdownChart;
+  const W = 960, H = 200;
+  const mg = { t: 18, r: 20, b: 30, l: 80 };
+  const iW = W - mg.l - mg.r;
+  const barH = 40;
+
+  const full = sc.fullExcise;
+  const maxPump = Math.max(sc.baselinePump, sc.corrPump) * 1.05;
+  const scale = v => (v / maxPump) * iW;
+
+  function stackedBar(yPos, label, wholesale, excise, carbon, vatBase) {
+    const vatAmt = vatBase * VAT;
+    const wW = scale(wholesale), eW = scale(excise), cW = scale(carbon), vW = scale(vatAmt);
+    let xPos = mg.l;
+    const total = wholesale + excise + carbon + vatAmt;
+    return `
+      <text class="tick" x="${mg.l - 8}" y="${yPos + barH / 2 + 4}" text-anchor="end" font-weight="700">${label}</text>
+      <rect x="${xPos}" y="${yPos}" width="${wW}" height="${barH}" rx="4" fill="#8b7355"/>
+      <rect x="${xPos += wW}" y="${yPos}" width="${eW}" height="${barH}" rx="0" fill="var(--blue)"/>
+      <rect x="${xPos += eW}" y="${yPos}" width="${cW}" height="${barH}" rx="0" fill="var(--slate)"/>
+      <rect x="${xPos += cW}" y="${yPos}" width="${vW}" height="${barH}" rx="4" fill="#bbb"/>
+      <text class="tick" x="${xPos + vW + 6}" y="${yPos + barH / 2 + 4}" text-anchor="start" font-weight="700">${fmtEuro(total)}/L</text>
+    `;
+  }
+
+  const baseVatBase = sc.wholesale + full + sc.carbon;
+  const corrVatBase = sc.wholesale + sc.corrExcise + sc.carbon;
+
+  const bar1 = stackedBar(mg.t, "Baseline", sc.wholesale, full, sc.carbon, baseVatBase);
+  const bar2 = stackedBar(mg.t + barH + 20, "Corridor", sc.wholesale, sc.corrExcise, sc.carbon, corrVatBase);
+
+  // Legend
+  const ly = mg.t + barH * 2 + 52;
+  const items = [
+    { c: "#8b7355", l: "Wholesale" },
+    { c: "var(--blue)", l: "Excise" },
+    { c: "var(--slate)", l: "Carbon tax" },
+    { c: "#bbb", l: "VAT" },
+  ];
+  const legend = items.map((it, i) => {
+    const lx = mg.l + i * 140;
+    return `<circle cx="${lx}" cy="${ly}" r="5" fill="${it.c}"/><text class="legend-label" x="${lx + 10}" y="${ly + 4}">${it.l}</text>`;
+  }).join("");
+
+  svg.innerHTML = `${bar1}${bar2}${legend}`;
+}
+
 /* ── chart primitives ── */
 
 function lp(pts) {
@@ -584,6 +795,23 @@ document.querySelectorAll("[data-fuel]").forEach(btn => {
   btn.addEventListener("click", () => {
     S.fuel = btn.dataset.fuel;
     document.querySelectorAll("[data-fuel]").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    scheduleRender();
+  });
+});
+
+// Section 3 controls
+DOM.scenarioBrent.addEventListener("input", e => {
+  S.scenarioBrent = +e.target.value;
+  document.querySelectorAll(".preset").forEach(p => p.classList.remove("active"));
+  scheduleRender();
+});
+
+document.querySelectorAll(".preset[data-brent]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    S.scenarioBrent = +btn.dataset.brent;
+    DOM.scenarioBrent.value = S.scenarioBrent;
+    document.querySelectorAll(".preset").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     scheduleRender();
   });
