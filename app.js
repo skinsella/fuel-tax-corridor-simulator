@@ -120,9 +120,9 @@ const DATA = buildSeries();
 
 const S = {
   fuel: "petrol",
-  lo: 65,
-  hi: 85,
-  coeff: 0.40,
+  lo: 55,
+  hi: 75,
+  coeff: 0.50,
 };
 
 /* ── DOM ── */
@@ -158,6 +158,7 @@ function fmtCurrency(v) {
   const s = v < 0 ? "-" : "";
   if (a >= 1e9) return `${s}€${(a / 1e9).toFixed(2)}bn`;
   if (a >= 1e6) return `${s}€${(a / 1e6).toFixed(0)}m`;
+  if (a >= 1e3) return `${s}€${(a / 1e3).toFixed(0)}k`;
   return `${s}€${a.toFixed(0)}`;
 }
 function fmtCents(v) { return `${v > 0 ? "+" : ""}${(v * 100).toFixed(1)} c/L`; }
