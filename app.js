@@ -160,6 +160,11 @@ const DOM = {
   s3PumpSaving: $("s3PumpSaving"), s3FillSaving: $("s3FillSaving"),
   s3FiscalMonth: $("s3FiscalMonth"), s3FiscalYear: $("s3FiscalYear"),
   responseCurve: $("responseCurve"), breakdownChart: $("breakdownChart"),
+  // Section 5
+  s5RefPump: $("s5RefPump"), s5BasePump: $("s5BasePump"),
+  s5VATWindfall: $("s5VATWindfall"), s5CorridorCost: $("s5CorridorCost"),
+  s5NetPosition: $("s5NetPosition"), s5SelfFinancing: $("s5SelfFinancing"),
+  s5Insight: $("s5Insight"), italianChart: $("italianChart"),
 };
 
 /* ── helpers ── */
@@ -310,6 +315,52 @@ function computeSection3(brent) {
   };
 }
 
+/* ── compute section 5 (Italian model: VAT windfall vs corridor cost) ── */
+
+function computeSection5(brent) {
+  const f = S.fuel;
+  const full = FULL[f];
+  const c = CARBON_2026[f];
+  const monthlyVol = VOL_2026[f] / 12;
+
+  // Reference pump price: Brent at corridor midpoint (where excise is unchanged)
+  const refBrent = (S.lo + S.hi) / 2;
+  const wRef = estimateWholesale(refBrent, f);
+  const refPump = (wRef + full + c) * (1 + VAT);
+
+  // Baseline pump price at scenario Brent (no corridor intervention)
+  const wCurr = estimateWholesale(brent, f);
+  const baselinePump = (wCurr + full + c) * (1 + VAT);
+
+  // VAT windfall: extra VAT collected vs reference level
+  const refVATperL = (wRef + full + c) * VAT;
+  const currVATperL = (wCurr + full + c) * VAT;
+  const vatWindfallPerL = Math.max(0, currVATperL - refVATperL);
+  const vatWindfallMonth = vatWindfallPerL * monthlyVol;
+
+  // Corridor fiscal cost: revenue forgone from cutting excise
+  const corrExc = corridorExcise(brent, f);
+  const exciseCut = Math.max(0, full - corrExc);
+  // Fiscal cost = lost excise + lost VAT on that excise
+  const corridorCostPerL = exciseCut * (1 + VAT);
+  const corridorCostMonth = corridorCostPerL * monthlyVol;
+
+  // Net Exchequer position (positive = net gain for State)
+  const netPosition = vatWindfallMonth - corridorCostMonth;
+  const selfFinancing = netPosition >= -1; // small tolerance
+
+  // Max self-financing excise cut
+  const maxCutPerL = vatWindfallPerL / (1 + VAT);
+
+  return {
+    brent, refBrent, refPump, baselinePump,
+    vatWindfallPerL, vatWindfallMonth,
+    corridorCostPerL, corridorCostMonth,
+    exciseCut, corrExc, maxCutPerL,
+    netPosition, selfFinancing,
+  };
+}
+
 /* ── render everything ── */
 
 function render() {
@@ -403,6 +454,9 @@ function render() {
 
   // Section 3
   renderSection3();
+
+  // Section 5
+  renderSection5();
 }
 
 function renderSection3() {
@@ -423,6 +477,40 @@ function renderSection3() {
 
   drawResponseCurve();
   drawBreakdownChart(sc);
+}
+
+function renderSection5() {
+  const s5 = computeSection5(S.scenarioBrent);
+
+  DOM.s5RefPump.textContent = fmtEuro(s5.refPump);
+  DOM.s5BasePump.textContent = fmtEuro(s5.baselinePump);
+  DOM.s5VATWindfall.textContent = fmtCurrency(s5.vatWindfallMonth);
+  DOM.s5CorridorCost.textContent = fmtCurrency(s5.corridorCostMonth);
+
+  const net = s5.netPosition;
+  DOM.s5NetPosition.textContent = (net >= 0 ? "+" : "") + fmtCurrency(net);
+  DOM.s5NetPosition.style.color = net >= 0 ? "var(--green)" : "var(--rose)";
+
+  DOM.s5SelfFinancing.textContent = s5.selfFinancing ? "Yes" : "No";
+  DOM.s5SelfFinancing.style.color = s5.selfFinancing ? "var(--green)" : "var(--rose)";
+
+  // Insight text
+  const brent = S.scenarioBrent;
+  let insight;
+  if (brent <= S.hi && brent >= S.lo) {
+    insight = `At €${brent}/bbl, Brent is inside the corridor — excise is unchanged and there is no fiscal cost. The Italian-style mechanism is dormant.`;
+  } else if (brent > S.hi) {
+    if (s5.selfFinancing) {
+      insight = `At €${brent}/bbl, the corridor cuts excise by ${(s5.exciseCut * 100).toFixed(1)} c/L, costing ${fmtCurrency(s5.corridorCostMonth)}/month. But higher wholesale prices generate ${fmtCurrency(s5.vatWindfallMonth)}/month in extra VAT — the corridor is fully self-financing with ${fmtCurrency(Math.abs(net))}/month to spare.`;
+    } else {
+      insight = `At €${brent}/bbl, the corridor costs ${fmtCurrency(s5.corridorCostMonth)}/month but the VAT windfall is only ${fmtCurrency(s5.vatWindfallMonth)}/month — a gap of ${fmtCurrency(Math.abs(net))}/month. To make it self-financing, reduce the strength to ${(s5.maxCutPerL / ((brent - S.hi) / 100) || 0).toFixed(2)} or widen the corridor.`;
+    }
+  } else {
+    insight = `At €${brent}/bbl, Brent is below the lower bound — the corridor raises excise, generating additional revenue. No VAT windfall offset is needed because the Exchequer gains on both sides.`;
+  }
+  DOM.s5Insight.textContent = insight;
+
+  drawItalianChart();
 }
 
 /* ============================================================
@@ -726,6 +814,95 @@ function drawBreakdownChart(sc) {
   }).join("");
 
   svg.innerHTML = `${bar1}${bar2}${legend}`;
+}
+
+/* ── Section 5: Italian model — VAT windfall vs corridor cost ── */
+
+function drawItalianChart() {
+  const svg = DOM.italianChart;
+  const W = 960, H = 340;
+  const mg = { t: 22, r: 20, b: 38, l: 58 };
+  const iW = W - mg.l - mg.r, iH = H - mg.t - mg.b;
+
+  // Compute VAT windfall and corridor cost across Brent range
+  const pts = [];
+  for (let b = 40; b <= 160; b += 1) {
+    const s = computeSection5(b);
+    pts.push({
+      brent: b,
+      windfall: s.vatWindfallMonth,
+      cost: s.corridorCostMonth,
+      net: s.netPosition,
+    });
+  }
+
+  const allVals = pts.flatMap(p => [p.windfall, p.cost]);
+  const mx = Math.max(...allVals) * 1.1 || 1;
+  const mn = 0;
+
+  const x = b => mg.l + ((b - 40) / 120) * iW;
+  const y = v => mg.t + iH - ((v - mn) / (mx - mn || 1)) * iH;
+
+  // Corridor band shading
+  const bandL = x(S.lo), bandR = x(S.hi);
+  const band = `<rect x="${bandL}" y="${mg.t}" width="${bandR - bandL}" height="${iH}" fill="rgba(109,112,109,0.06)" stroke="rgba(109,112,109,0.15)" stroke-dasharray="4 4"/>`;
+
+  // Fill areas
+  let windfillArea = `M${x(40)},${y(0)}`;
+  pts.forEach(p => { windfillArea += ` L${x(p.brent)},${y(p.windfall)}`; });
+  windfillArea += ` L${x(160)},${y(0)} Z`;
+
+  let costArea = `M${x(40)},${y(0)}`;
+  pts.forEach(p => { costArea += ` L${x(p.brent)},${y(p.cost)}`; });
+  costArea += ` L${x(160)},${y(0)} Z`;
+
+  // Find crossover point for annotation
+  let crossover = 0;
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i-1].windfall <= pts[i-1].cost && pts[i].windfall > pts[i].cost) {
+      crossover = pts[i].brent;
+      break;
+    }
+  }
+
+  // Scenario marker
+  const sx = x(S.scenarioBrent);
+  const sData = computeSection5(S.scenarioBrent);
+  const marker = `
+    <line x1="${sx}" y1="${mg.t}" x2="${sx}" y2="${mg.t + iH}" stroke="var(--amber)" stroke-width="2" stroke-dasharray="6 3"/>
+    <text class="axis-label" x="${sx}" y="${mg.t - 6}" text-anchor="middle" fill="var(--amber)" font-weight="700">€${S.scenarioBrent}</text>
+  `;
+
+  // Crossover annotation
+  let crossAnnotation = "";
+  if (crossover > 0 && crossover < 160) {
+    const cx = x(crossover);
+    crossAnnotation = `
+      <line x1="${cx}" y1="${mg.t + 20}" x2="${cx}" y2="${mg.t + iH}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="3 4" opacity="0.4"/>
+      <text class="annotation-title" x="${cx + 6}" y="${mg.t + 32}">Break-even €${crossover}</text>
+      <text class="annotation-copy" x="${cx + 6}" y="${mg.t + 46}">Self-financing above this price</text>
+    `;
+  }
+
+  // Brent x-axis ticks
+  let bTicks = "";
+  for (let b = 40; b <= 160; b += 10) {
+    bTicks += `<text class="tick" x="${x(b)}" y="${H - 10}" text-anchor="middle">€${b}</text>`;
+  }
+
+  svg.innerHTML = `
+    ${grid(W, H, mg, 4)}
+    ${band}
+    <path d="${windfillArea}" fill="rgba(12,122,95,0.15)" stroke="none"/>
+    <path d="${costArea}" fill="rgba(215,125,48,0.15)" stroke="none"/>
+    <path d="${lp(pts.map(p=>[x(p.brent),y(p.windfall)]))}" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round"/>
+    <path d="${lp(pts.map(p=>[x(p.brent),y(p.cost)]))}" fill="none" stroke="var(--amber)" stroke-width="3" stroke-linecap="round"/>
+    ${crossAnnotation}
+    ${marker}
+    ${bTicks}
+    ${yticksMil(mn, mx, y, mg.l - 10, "€m/month")}
+    ${leg([{c:"var(--green)",l:"VAT windfall"},{c:"var(--amber)",l:"Corridor fiscal cost"}], mg.l + 8, mg.t + 6)}
+  `;
 }
 
 /* ── chart primitives ── */
