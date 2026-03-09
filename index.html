@@ -13,338 +13,225 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Policy demonstration prototype</p>
-          <h1>Irish Fuel Tax Corridor Simulator</h1>
-          <p class="lede">
-            An interactive model built on historical Irish data showing how a
-            corridor-based fuel tax stabiliser would have softened pump-price
-            spikes for drivers, and what it means for the trade-off with
-            Exchequer revenue in policy decisions right now.
+    <div class="page">
+
+      <!-- ─── HEADER ─── -->
+      <header class="header">
+        <div class="header-text">
+          <p class="eyebrow">Policy tool · Real Irish data · 2019–2025</p>
+          <h1>Fuel Tax<br/>Corridor Simulator</h1>
+          <p class="subtitle">
+            What if excise duty adjusted automatically when oil prices spike —
+            instead of ad-hoc emergency cuts? Set a corridor below and see
+            what would have happened.
           </p>
-          <div class="hero-actions">
-            <a class="button primary" href="#simulator">Open simulator</a>
-            <a class="button secondary" href="./PRD.md">Read PRD</a>
-          </div>
         </div>
-        <aside class="hero-panel">
-          <div class="mini-stat">
-            <span>Data window</span>
-            <strong>Jan 2019 – Mar 2025</strong>
+        <nav class="header-controls">
+          <div class="fuel-toggle">
+            <button class="chip active" data-fuel="petrol">Petrol</button>
+            <button class="chip" data-fuel="diesel">Diesel</button>
           </div>
-          <div class="mini-stat">
-            <span>Cheaper at the pump</span>
-            <strong id="heroPumpCut">-8.4 c/L</strong>
-          </div>
-          <div class="mini-stat">
-            <span>Saving on a 50-litre fill</span>
-            <strong id="heroFillSaving">€4.20</strong>
-          </div>
-          <div class="mini-stat">
-            <span>Annual consumer saving (latest year shown)</span>
-            <strong id="heroConsumerGain">€312m</strong>
-          </div>
-          <p class="hero-note">
-            The consumer case is simple: when oil prices spike, the corridor
-            trims excise to reduce the increase passed through to motorists.
-            This tool uses real CSO pump prices, Revenue excise rates, carbon
-            tax schedules, and Brent crude data from 2019 to 2025 to show how
-            the rule would have behaved through the energy crisis and after it.
-          </p>
-        </aside>
+          <label class="slider-control">
+            <span>Lower bound</span>
+            <div class="slider-row">
+              <input id="lowerBound" type="range" min="30" max="90" value="65" />
+              <strong id="lowerValue">€65</strong>
+            </div>
+          </label>
+          <label class="slider-control">
+            <span>Upper bound</span>
+            <div class="slider-row">
+              <input id="upperBound" type="range" min="50" max="120" value="85" />
+              <strong id="upperValue">€85</strong>
+            </div>
+          </label>
+          <label class="slider-control">
+            <span>Strength</span>
+            <div class="slider-row">
+              <input id="adjustmentCoefficient" type="range" min="0.1" max="1.0" step="0.05" value="0.40" />
+              <strong id="coefficientValue">0.40</strong>
+            </div>
+            <span class="hint">c/L cut per €1 above upper bound</span>
+          </label>
+        </nav>
       </header>
 
-      <main id="simulator">
-        <section class="briefing-strip panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">For ministers now</p>
-              <h2>How this helps in March 2026</h2>
-            </div>
+      <!-- ═══════════════════════════════════════════
+           SECTION 1 — THE IDEA
+           ═══════════════════════════════════════════ -->
+      <section class="section" id="idea">
+        <div class="section-label"><span>1</span> The idea</div>
+        <h2>How a price corridor works</h2>
+
+        <div class="explainer-cards">
+          <article class="zone-card zone-above">
+            <div class="zone-icon">▲</div>
+            <h3>Oil price above corridor</h3>
+            <p>Excise is automatically <strong>cut</strong> in proportion to how far Brent exceeds the upper bound. Drivers pay less at the pump.</p>
+          </article>
+          <article class="zone-card zone-inside">
+            <div class="zone-icon">●</div>
+            <h3>Oil price inside corridor</h3>
+            <p>Excise stays at the <strong>normal rate</strong>. No fiscal cost, no intervention needed. The rule is dormant.</p>
+          </article>
+          <article class="zone-card zone-below">
+            <div class="zone-icon">▼</div>
+            <h3>Oil price below corridor</h3>
+            <p>Excise <strong>rises</strong> modestly, rebuilding fiscal capacity. Pump prices are already low, so the effect on drivers is small.</p>
+          </article>
+        </div>
+
+        <div class="chart-block">
+          <div class="chart-title">
+            <h3>Brent crude price &amp; the corridor band</h3>
+            <p class="chart-note">Shaded area is the corridor. Outside it, excise adjusts automatically.</p>
           </div>
-          <div class="briefing-grid">
-            <article>
-              <h3>Set a rule before the next spike</h3>
-              <p>
+          <svg id="corridorChart" viewBox="0 0 960 340"></svg>
+        </div>
 
-                Use the actual 2022 shock window to judge how much pump-price
-                relief a corridor would have delivered versus the ad-hoc excise
-                cuts that were applied.
-              </p>
-            </article>
-            <article>
-              <h3>Quantify the consumer-fiscal trade-off</h3>
-              <p>
-                Ministers can test how many cent per litre consumers gain and
-                what revenue the Exchequer gives up under each rule.
-              </p>
-            </article>
-            <article>
-              <h3>Stress-test current parameter choices</h3>
-              <p>
-
-                The 2023 to 2025 window shows whether a corridor stays quiet
-                in calmer markets — real data confirms whether the rule would
-                have switched off when it should have.
-              </p>
-            </article>
+        <div class="chart-block">
+          <div class="chart-title">
+            <h3>What drivers pay: baseline vs corridor</h3>
+            <p class="chart-note">Pump price at full excise rates (blue) vs corridor-adjusted excise (green)</p>
           </div>
-        </section>
+          <svg id="pumpChart" viewBox="0 0 960 300"></svg>
+        </div>
 
-        <section class="controls-section panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Scenario controls</p>
-              <h2>Define the corridor rule</h2>
-            </div>
-            <div class="toggles">
-              <button class="chip active" data-fuel="petrol">Petrol</button>
-              <button class="chip" data-fuel="diesel">Diesel</button>
-            </div>
-          </div>
-
-          <div class="controls-grid">
-            <label class="control">
-              <span>Reference oil price</span>
-              <strong id="referenceValue">€75/bbl</strong>
-              <input id="referencePrice" type="range" min="40" max="110" value="75" />
-            </label>
-            <label class="control">
-              <span>Lower corridor bound</span>
-              <strong id="lowerValue">€65/bbl</strong>
-              <input id="lowerBound" type="range" min="30" max="95" value="65" />
-            </label>
-            <label class="control">
-              <span>Upper corridor bound</span>
-              <strong id="upperValue">€85/bbl</strong>
-              <input id="upperBound" type="range" min="50" max="125" value="85" />
-            </label>
-            <label class="control">
-              <span>Excise adjustment strength</span>
-              <strong id="coefficientValue">0.40 c/L per €1</strong>
-              <input id="adjustmentCoefficient" type="range" min="0.1" max="1" step="0.05" value="0.4" />
-            </label>
-            <label class="control">
-              <span>Demand elasticity</span>
-              <strong id="elasticityValue">0.15</strong>
-              <input id="elasticity" type="range" min="0" max="0.5" step="0.01" value="0.15" />
-            </label>
-            <label class="control">
-              <span>Time window</span>
-              <strong id="windowValue">2019-2025</strong>
-              <select id="timeWindow">
-                <option value="all">2019-2025</option>
-                <option value="shock">2021-2023</option>
-                <option value="recent">2023-2025</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section class="summary-grid">
-          <article class="summary-card accent-amber">
-            <span>Average reduction at the pump</span>
-            <strong id="avgPumpGap">-8.4 c/L</strong>
-            <p>How much lower the per-litre price is for motorists under the corridor.</p>
+        <div class="metrics-row">
+          <article class="metric">
+            <span>Average pump reduction</span>
+            <strong id="metricPumpGap">—</strong>
           </article>
-          <article class="summary-card accent-green">
-            <span>Saving on a typical fill-up</span>
-            <strong id="fillUpSaving">€4.20</strong>
-            <p>Reduction on a 50-litre fill at the selected corridor settings.</p>
+          <article class="metric">
+            <span>50-litre fill saving</span>
+            <strong id="metricFill">—</strong>
           </article>
-          <article class="summary-card accent-blue">
-            <span>Annual saving across motorists</span>
-            <strong id="annualConsumerSaving">€312m</strong>
-            <p>Consumer benefit from lower pump prices over the latest year shown, based on SEAI consumption volumes.</p>
+          <article class="metric">
+            <span>Annual saving per driver</span>
+            <strong id="metricDriver">—</strong>
           </article>
-          <article class="summary-card accent-slate">
-            <span>Annual saving for a regular driver</span>
-            <strong id="driverAnnualSaving">€109</strong>
-            <p>Assumes roughly 1,300 litres of annual fuel use for a typical heavy car user.</p>
-          </article>
-        </section>
-
-        <section class="summary-grid secondary-grid">
-          <article class="summary-card accent-blue">
-            <span>Cumulative fiscal impact</span>
-            <strong id="cumulativeFiscalImpact">-€248m</strong>
-            <p>Difference in fuel-tax and VAT revenue relative to the status quo.</p>
-          </article>
-          <article class="summary-card accent-slate">
+          <article class="metric">
             <span>Volatility reduction</span>
-            <strong id="volatilityReduction">18%</strong>
-            <p>Reduction in monthly pump-price volatility, which matters for budgeting and household cash flow.</p>
+            <strong id="metricVol">—</strong>
           </article>
-        </section>
+        </div>
+      </section>
 
-        <section class="consumer-story panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Why it matters</p>
-              <h2>What the consumer feels</h2>
-            </div>
-          </div>
-          <div class="method-grid">
-            <article>
-              <h3>Lower spikes at the forecourt</h3>
-              <p>
-                The corridor does not eliminate higher fuel prices. It reduces
-                the sharpest part of the increase when oil prices jump.
-              </p>
-            </article>
-            <article>
-              <h3>More predictable weekly costs</h3>
-              <p>
-                Lower volatility means drivers face fewer sudden jumps in the
-                cost of commuting, school runs, and business travel.
-              </p>
-            </article>
-            <article>
-              <h3>Visible household cash impact</h3>
-              <p>
-                Translating cents per litre into a typical fill-up cost makes it
-                easier to judge whether the policy is meaningful to households.
-              </p>
-            </article>
-            <article>
-              <h3>Trade-off is transparent</h3>
-              <p>
-                The simulator keeps the fiscal cost on screen so ministers can
-                weigh consumer protection against foregone revenue.
-              </p>
-            </article>
-          </div>
-        </section>
+      <!-- ═══════════════════════════════════════════
+           SECTION 2 — COMPARISON TO 2022
+           ═══════════════════════════════════════════ -->
+      <section class="section" id="comparison">
+        <div class="section-label"><span>2</span> The comparison</div>
+        <h2>Corridor vs the 2022 emergency excise cuts</h2>
 
-        <section class="chart-grid">
-          <article class="chart-card panel wide">
-            <div class="chart-header">
-              <div>
-                <p class="eyebrow">Chart 1</p>
-                <h3>Pump price: full-rate baseline vs corridor</h3>
-              </div>
-              <p class="chart-note">Includes a callout for the largest saving on a 50-litre fill in the selected window</p>
-            </div>
-            <svg id="priceChart" viewBox="0 0 900 340" aria-label="Price chart"></svg>
-          </article>
-
-          <article class="chart-card panel">
-            <div class="chart-header">
-              <div>
-                <p class="eyebrow">Chart 2</p>
-                <h3>Excise duty path</h3>
-              </div>
-            </div>
-            <svg id="exciseChart" viewBox="0 0 420 280" aria-label="Excise chart"></svg>
-          </article>
-
-          <article class="chart-card panel">
-            <div class="chart-header">
-              <div>
-                <p class="eyebrow">Chart 3</p>
-                <h3>Revenue comparison</h3>
-              </div>
-            </div>
-            <svg id="revenueChart" viewBox="0 0 420 280" aria-label="Revenue chart"></svg>
-          </article>
-
-          <article class="chart-card panel wide">
-            <div class="chart-header">
-              <div>
-                <p class="eyebrow">Chart 4</p>
-                <h3>Consumer savings by year</h3>
-              </div>
-              <p class="chart-note">Positive bars mean lower total fuel costs for motorists under the corridor</p>
-            </div>
-            <svg id="savingsChart" viewBox="0 0 900 280" aria-label="Savings chart"></svg>
-          </article>
-        </section>
-
-        <section class="methodology panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Method</p>
-              <h2>How the prototype calculates outcomes</h2>
-            </div>
+        <div class="comparison-intro">
+          <div class="intro-card actual">
+            <h3>What actually happened</h3>
+            <p>
+              On 9 March 2022 the government cut petrol excise by
+              <strong>20 c/L</strong> and diesel by <strong>15 c/L</strong>
+              as Brent surged past €100/bbl. The cuts were kept in place for
+              fifteen months and restored in three steps through mid-2023.
+            </p>
           </div>
-          <div class="method-grid">
-            <article>
-              <h3>Baseline pricing</h3>
-              <p>
-                Wholesale price is derived from actual CSO pump prices by
-                backing out the excise, carbon tax, and VAT that applied each
-                month. The no-intervention baseline then reconstructs the pump
-                price at full excise rates.
-              </p>
-            </article>
-            <article>
-              <h3>Corridor rule</h3>
-              <p>
-                Excise falls when Brent exceeds the upper corridor bound and
-                rises when it drops below the lower bound. Changes are bounded
-                so duty stays between zero and 150% of the full rate.
-              </p>
-            </article>
-            <article>
-              <h3>Consumer welfare</h3>
-              <p>
-                Consumer saving equals pump price reduction multiplied by fuel
-                volume, adjusted by the chosen elasticity setting.
-              </p>
-            </article>
-            <article>
-              <h3>Revenue effect</h3>
-              <p>
-                Fiscal impact combines excise, carbon tax and VAT changes
-                relative to the baseline path.
-              </p>
-            </article>
+          <div class="intro-card corridor">
+            <h3>What a corridor would have done</h3>
+            <p>
+              With the corridor set above, excise would have adjusted
+              <strong>automatically</strong> — cutting deeper when oil was
+              highest, easing back as prices fell, and switching off entirely
+              once Brent returned inside the band.
+            </p>
           </div>
-        </section>
-        <section class="data-sources panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Transparency</p>
-              <h2>Data sources and assumptions</h2>
+        </div>
+
+        <div class="head-to-head">
+          <div class="h2h-header">
+            <div class="h2h-label">2021–2024</div>
+            <div class="h2h-col-label actual-label">Actual cuts</div>
+            <div class="h2h-col-label corridor-label">Corridor</div>
+          </div>
+          <div class="h2h-row">
+            <span>Total fiscal cost</span>
+            <strong id="h2hFiscalActual">—</strong>
+            <strong id="h2hFiscalCorridor">—</strong>
+          </div>
+          <div class="h2h-row">
+            <span>Total consumer saving</span>
+            <strong id="h2hConsumerActual">—</strong>
+            <strong id="h2hConsumerCorridor">—</strong>
+          </div>
+          <div class="h2h-row">
+            <span>Peak pump reduction</span>
+            <strong id="h2hPeakActual">—</strong>
+            <strong id="h2hPeakCorridor">—</strong>
+          </div>
+          <div class="h2h-row">
+            <span>Months of intervention</span>
+            <strong id="h2hMonthsActual">—</strong>
+            <strong id="h2hMonthsCorridor">—</strong>
+          </div>
+          <div class="h2h-row">
+            <span>Fiscal efficiency</span>
+            <strong id="h2hEfficiencyActual">—</strong>
+            <strong id="h2hEfficiencyCorridor">—</strong>
+            <span class="row-hint">€ consumer saving per €1 fiscal cost</span>
+          </div>
+        </div>
+
+        <div class="chart-block">
+          <div class="chart-title">
+            <h3>Pump price paths, 2021–2024</h3>
+            <p class="chart-note">Grey dashed = no intervention · Blue = actual policy · Green = corridor</p>
+          </div>
+          <svg id="compPumpChart" viewBox="0 0 960 320"></svg>
+        </div>
+
+        <div class="two-charts">
+          <div class="chart-block">
+            <div class="chart-title">
+              <h3>Excise rate paths</h3>
+              <p class="chart-note">Blue = actual · Green = corridor · Grey = full rate</p>
             </div>
+            <svg id="compExciseChart" viewBox="0 0 470 280"></svg>
           </div>
-          <div class="method-grid">
-            <article>
-              <h3>Pump prices</h3>
-              <p>
-                CSO monthly average retail prices for petrol (series CPM09) and
-                diesel (CPM10), January 2019 to March 2025.
-              </p>
-            </article>
-            <article>
-              <h3>Brent crude</h3>
-              <p>
-                ICE Brent front-month contract monthly averages converted to
-                euro at ECB reference EUR/USD exchange rates.
-              </p>
-            </article>
-            <article>
-              <h3>Tax rates</h3>
-              <p>
-                Revenue Commissioners mineral oil tax schedules including the
-                March 2022 emergency excise cuts and phased restoration through
-                2023. Carbon tax per Finance Acts 2019-2024.
-              </p>
-            </article>
-            <article>
-              <h3>Consumption</h3>
-              <p>
-                SEAI National Energy Balance annual road-transport volumes for
-                petrol and diesel, interpolated monthly.
-              </p>
-            </article>
+          <div class="chart-block">
+            <div class="chart-title">
+              <h3>Cumulative fiscal cost</h3>
+              <p class="chart-note">Running total of revenue forgone relative to full excise rates</p>
+            </div>
+            <svg id="compFiscalChart" viewBox="0 0 470 280"></svg>
           </div>
-        </section>
-      </main>
+        </div>
+
+        <div class="insight-strip">
+          <p id="insightText">—</p>
+        </div>
+      </section>
+
+      <!-- ─── FOOTER ─── -->
+      <footer class="footer">
+        <div class="footer-grid">
+          <div>
+            <strong>Pump prices</strong>
+            <p>CSO monthly averages (CPM09 petrol, CPM10 diesel), Jan 2019 – Mar 2025</p>
+          </div>
+          <div>
+            <strong>Brent crude</strong>
+            <p>ICE front-month contract, monthly avg, converted at ECB EUR/USD</p>
+          </div>
+          <div>
+            <strong>Tax rates</strong>
+            <p>Revenue Commissioners MOT schedules incl. 2022 cuts. Carbon tax per Finance Acts 2019–2024.</p>
+          </div>
+          <div>
+            <strong>Consumption</strong>
+            <p>SEAI National Energy Balance, annual road-transport volumes</p>
+          </div>
+        </div>
+      </footer>
+
     </div>
-
     <script src="./app.js"></script>
   </body>
 </html>
