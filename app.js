@@ -238,16 +238,24 @@ function render() {
 
   // Section 1
   const s1 = computeSection1();
-  const gaps = s1.map(d => d.corrPump - d.baselinePump);
-  const avgGap = avg(gaps);
+  // Average gap only during months the corridor is active (not dormant)
+  const activeGaps = s1.filter(d => Math.abs(d.corrExcise - FULL[S.fuel]) > 0.001).map(d => d.corrPump - d.baselinePump);
+  const avgGap = activeGaps.length > 0 ? avg(activeGaps) : 0;
   const volB = stdev(s1.map(d => d.baselinePump));
   const volC = stdev(s1.map(d => d.corrPump));
-  const volRed = volB > 0 ? (1 - volC / volB) * 100 : 0;
+  const volChange = volB > 0 ? (1 - volC / volB) * 100 : 0;
 
   DOM.metricPumpGap.textContent = fmtCents(avgGap);
   DOM.metricFill.textContent = fmtEuro(Math.max(0, -avgGap * 50));
   DOM.metricDriver.textContent = fmtEuro(Math.max(0, -avgGap * 1300));
-  DOM.metricVol.textContent = fmtPct(volRed);
+  // Show volatility change — positive = reduced, negative = increased
+  if (volChange >= 0) {
+    DOM.metricVol.textContent = fmtPct(volChange);
+    DOM.metricVol.title = "Pump-price volatility reduced";
+  } else {
+    DOM.metricVol.textContent = `+${fmtPct(Math.abs(volChange))}`;
+    DOM.metricVol.title = "Pump-price volatility increased with these settings";
+  }
 
   drawCorridorChart(s1);
   drawPumpChart(s1);
@@ -262,8 +270,13 @@ function render() {
   const peakCorrCut = Math.max(...s2.map(d => d.corrPeakCut));
   const monthsAct = sum(s2.map(d => d.actActive));
   const monthsCorr = sum(s2.map(d => d.corrActive));
-  const effAct = totalActFiscal > 0 ? totalActConsumer / totalActFiscal : 0;
-  const effCorr = totalCorrFiscal > 0 ? totalCorrConsumer / totalCorrFiscal : 0;
+  // Net fiscal cost per €1 of consumer relief — the corridor can score better
+  // because months below the lower bound generate extra revenue, partially
+  // offsetting the cost of cutting during spikes.
+  // For actual policy, excise was only ever cut (never raised), so ratio = 1:1.
+  // For corridor, if it raises excise in cheap months, net cost < gross cost → ratio < 1.
+  const effAct = totalActConsumer > 0 ? totalActFiscal / totalActConsumer : 0;
+  const effCorr = totalCorrConsumer > 0 ? totalCorrFiscal / totalCorrConsumer : 0;
 
   DOM.h2hFiscalActual.textContent = fmtCurrency(totalActFiscal);
   DOM.h2hFiscalCorridor.textContent = fmtCurrency(totalCorrFiscal);
@@ -273,8 +286,8 @@ function render() {
   DOM.h2hPeakCorridor.textContent = fmtCents(-peakCorrCut);
   DOM.h2hMonthsActual.textContent = monthsAct;
   DOM.h2hMonthsCorridor.textContent = monthsCorr;
-  DOM.h2hEfficiencyActual.textContent = `€${effAct.toFixed(2)}`;
-  DOM.h2hEfficiencyCorridor.textContent = `€${effCorr.toFixed(2)}`;
+  DOM.h2hEfficiencyActual.textContent = effAct > 0 ? `${(effAct * 100).toFixed(0)}c` : "—";
+  DOM.h2hEfficiencyCorridor.textContent = effCorr > 0 ? `${(effCorr * 100).toFixed(0)}c` : "net gain";
 
   drawCompPumpChart(s2);
   drawCompExciseChart(s2);
@@ -324,9 +337,6 @@ function drawCorridorChart(data) {
   const bandTop = y(S.hi), bandBot = y(S.lo);
   const band = `<rect x="${mg.l}" y="${Math.min(bandTop, bandBot)}" width="${iW}" height="${Math.abs(bandBot - bandTop)}" rx="6" fill="rgba(12,122,95,0.08)" stroke="rgba(12,122,95,0.18)" stroke-dasharray="6 4"/>`;
 
-  // Brent line
-  const bPath = lp(data.map((d, i) => [x(i), y(d.brent)]));
-
   // color segments: green above upper, amber below lower, slate inside
   const segments = buildColorSegments(data, x, y, S.lo, S.hi);
 
@@ -335,8 +345,7 @@ function drawCorridorChart(data) {
     ${band}
     <line x1="${mg.l}" x2="${mg.l + iW}" y1="${y(S.hi)}" y2="${y(S.hi)}" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.5"/>
     <line x1="${mg.l}" x2="${mg.l + iW}" y1="${y(S.lo)}" y2="${y(S.lo)}" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.5"/>
-    <text class="axis-label" x="${mg.l + iW + 4}" y="${y(S.hi) + 4}" fill="var(--green)" font-size="10" font-weight="700">Upper €${S.hi}</text>
-    <text class="axis-label" x="${mg.l + iW + 4}" y="${y(S.lo) + 4}" fill="var(--amber)" font-size="10" font-weight="700">Lower €${S.lo}</text>
+    ${boundLabels(y, mg, iW)}
     ${segments}
     ${xticks(data, x, H)}
     ${yticks(mn, mx, y, mg.l - 10, "€/bbl")}
@@ -354,6 +363,23 @@ function buildColorSegments(data, x, y, lo, hi) {
   return out;
 }
 
+function boundLabels(y, mg, iW) {
+  const yHi = y(S.hi), yLo = y(S.lo);
+  const xPos = mg.l + iW - 4;
+  // avoid collision: if labels closer than 16px, offset them
+  const gap = yLo - yHi;
+  let hiY = yHi - 6, loY = yLo + 14;
+  if (gap < 20) {
+    const mid = (yHi + yLo) / 2;
+    hiY = mid - 10;
+    loY = mid + 12;
+  }
+  return `
+    <text class="axis-label" x="${xPos}" y="${hiY}" fill="var(--green)" font-size="10" font-weight="700" text-anchor="end">Upper €${S.hi}</text>
+    <text class="axis-label" x="${xPos}" y="${loY}" fill="var(--amber)" font-size="10" font-weight="700" text-anchor="end">Lower €${S.lo}</text>
+  `;
+}
+
 /* ── Section 1: Pump price baseline vs corridor ── */
 
 function drawPumpChart(data) {
@@ -367,19 +393,28 @@ function drawPumpChart(data) {
   const x = i => mg.l + (i / (data.length - 1 || 1)) * iW;
   const y = v => mg.t + iH - ((v - mn) / (mx - mn || 1)) * iH;
 
-  // fill between
-  const fwd = data.map((d, i) => `${x(i)},${y(d.baselinePump)}`).join(" ");
-  const rev = data.map((d, i) => `${x(data.length - 1 - i)},${y(data[data.length - 1 - i].corrPump)}`).join(" ");
+  // fill between — only shade where corridor saves money (corrPump < baselinePump)
+  const fillSegments = buildFillBetween(data, x, y);
 
   svg.innerHTML = `
     ${grid(W, H, mg, 4)}
-    <polygon points="${fwd} ${rev}" fill="rgba(12,122,95,0.10)"/>
+    ${fillSegments}
     <path d="${lp(data.map((d,i)=>[x(i),y(d.baselinePump)]))}" fill="none" stroke="var(--blue)" stroke-width="3" stroke-linecap="round"/>
     <path d="${lp(data.map((d,i)=>[x(i),y(d.corrPump)]))}" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round"/>
     ${xticks(data, x, H)}
     ${yticks(mn, mx, y, mg.l - 10, "€/L")}
     ${leg([{c:"var(--blue)",l:"Baseline (full excise)"},{c:"var(--green)",l:"Corridor"}], mg.l + 8, mg.t + 6)}
   `;
+}
+
+function buildFillBetween(data, x, y) {
+  let out = "";
+  for (let i = 0; i < data.length - 1; i++) {
+    const saving = data[i].corrPump <= data[i].baselinePump || data[i+1].corrPump <= data[i+1].baselinePump;
+    const color = saving ? "rgba(12,122,95,0.12)" : "rgba(215,125,48,0.10)";
+    out += `<polygon points="${x(i)},${y(data[i].baselinePump)} ${x(i+1)},${y(data[i+1].baselinePump)} ${x(i+1)},${y(data[i+1].corrPump)} ${x(i)},${y(data[i].corrPump)}" fill="${color}"/>`;
+  }
+  return out;
 }
 
 /* ── Section 2: Comparison pump price ── */
@@ -482,8 +517,8 @@ function grid(W, H, mg, n) {
 }
 
 function xticks(data, sx, H) {
-  const n = Math.min(8, data.length);
-  const step = Math.max(1, Math.floor(data.length / n));
+  const maxTicks = 8;
+  const step = Math.max(1, Math.ceil(data.length / maxTicks));
   let o = "";
   for (let i = 0; i < data.length; i += step) {
     o += `<text class="tick" x="${sx(i)}" y="${H - 10}" text-anchor="middle">${data[i].label}</text>`;
@@ -509,21 +544,27 @@ function leg(items, sx, sy) {
 
 /* ── bind controls ── */
 
+let rafId = 0;
+function scheduleRender() {
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(render);
+}
+
 DOM.lo.addEventListener("input", e => {
   S.lo = +e.target.value;
   if (S.lo >= S.hi) { S.hi = S.lo + 1; DOM.hi.value = S.hi; }
-  render();
+  scheduleRender();
 });
 
 DOM.hi.addEventListener("input", e => {
   S.hi = +e.target.value;
   if (S.hi <= S.lo) { S.lo = S.hi - 1; DOM.lo.value = S.lo; }
-  render();
+  scheduleRender();
 });
 
 DOM.coeff.addEventListener("input", e => {
   S.coeff = +e.target.value;
-  render();
+  scheduleRender();
 });
 
 document.querySelectorAll("[data-fuel]").forEach(btn => {
@@ -531,7 +572,7 @@ document.querySelectorAll("[data-fuel]").forEach(btn => {
     S.fuel = btn.dataset.fuel;
     document.querySelectorAll("[data-fuel]").forEach(c => c.classList.remove("active"));
     btn.classList.add("active");
-    render();
+    scheduleRender();
   });
 });
 
