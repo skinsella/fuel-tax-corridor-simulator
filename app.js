@@ -165,7 +165,8 @@ function fmtCurrency(v) {
   const a = Math.abs(v);
   const s = v < 0 ? "-" : "";
   if (a >= 1e9) return `${s}€${(a / 1e9).toFixed(2)}bn`;
-  if (a >= 1e6) return `${s}€${(a / 1e6).toFixed(0)}m`;
+  if (a >= 100e6) return `${s}€${(a / 1e6).toFixed(0)}m`;
+  if (a >= 1e6) return `${s}€${(a / 1e6).toFixed(1)}m`;
   if (a >= 1e3) return `${s}€${(a / 1e3).toFixed(0)}k`;
   return `${s}€${a.toFixed(0)}`;
 }
@@ -313,8 +314,11 @@ function render() {
   const s1 = computeSection1();
   // Average gap across all months (includes dormant months at zero)
   const avgGap = avg(s1.map(d => d.corrPump - d.baselinePump));
-  const volB = stdev(s1.map(d => d.baselinePump));
-  const volC = stdev(s1.map(d => d.corrPump));
+  // Volatility = stdev of month-to-month price changes, not levels
+  const baseChanges = s1.slice(1).map((d, i) => d.baselinePump - s1[i].baselinePump);
+  const corrChanges = s1.slice(1).map((d, i) => d.corrPump - s1[i].corrPump);
+  const volB = stdev(baseChanges);
+  const volC = stdev(corrChanges);
   const volChange = volB > 0 ? (1 - volC / volB) * 100 : 0;
 
   DOM.metricPumpGap.textContent = fmtCents(avgGap);
@@ -362,7 +366,7 @@ function render() {
   DOM.h2hMonthsActual.textContent = monthsAct;
   DOM.h2hMonthsCorridor.textContent = monthsCorr;
   DOM.h2hEfficiencyActual.textContent = effAct > 0 ? `${(effAct * 100).toFixed(0)}c` : "—";
-  DOM.h2hEfficiencyCorridor.textContent = effCorr > 0 ? `${(effCorr * 100).toFixed(0)}c` : "net gain";
+  DOM.h2hEfficiencyCorridor.textContent = totalCorrFiscal > 0 && totalCorrConsumer > 0 ? `${(effCorr * 100).toFixed(0)}c` : totalCorrFiscal < 0 ? "net gain" : "—";
 
   drawCompPumpChart(s2);
   drawCompExciseChart(s2);
@@ -580,7 +584,8 @@ function drawCompFiscalChart(data) {
   });
 
   const all = cum.flatMap(d => [d.cumAct, d.cumCorr]);
-  const mn = 0, mx = Math.max(...all) * 1.1 || 1;
+  const mn = Math.min(0, ...all) * 1.1;
+  const mx = Math.max(0, ...all) * 1.1 || 1;
   const x = i => mg.l + (i / (cum.length - 1 || 1)) * iW;
   const y = v => mg.t + iH - ((v - mn) / (mx - mn || 1)) * iH;
 
@@ -660,7 +665,7 @@ function drawResponseCurve() {
     ${marker}
     ${bTicks}
     ${yticks(pMn, pMx, yP, mg.l - 10, "€/L pump")}
-    ${yticks(eMn, eMx, yE, W - mg.r + 10, "€/L excise")}
+    ${yticksRight(eMn, eMx, yE, W - mg.r + 10, "€/L excise")}
     ${leg([{c:"var(--blue)",l:"Baseline pump"},{c:"var(--green)",l:"Corridor pump"},{c:"var(--amber)",l:"Excise rate (right)"}], mg.l + 8, mg.t + 6)}
   `;
 }
@@ -749,6 +754,15 @@ function yticks(mn, mx, sy, xPos, label) {
   return o;
 }
 
+function yticksRight(mn, mx, sy, xPos, label) {
+  let o = `<text class="axis-label" x="${xPos}" y="12" text-anchor="end">${label}</text>`;
+  for (let i = 0; i <= 4; i++) {
+    const v = mn + ((mx - mn) / 4) * i;
+    o += `<text class="tick" x="${xPos}" y="${sy(v) + 4}" text-anchor="start">${v >= 10 ? Math.round(v) : v.toFixed(2)}</text>`;
+  }
+  return o;
+}
+
 function yticksMil(mn, mx, sy, xPos, label) {
   let o = `<text class="axis-label" x="${xPos}" y="12" text-anchor="start">${label}</text>`;
   for (let i = 0; i <= 4; i++) {
@@ -803,7 +817,9 @@ document.querySelectorAll("[data-fuel]").forEach(btn => {
 // Section 3 controls
 DOM.scenarioBrent.addEventListener("input", e => {
   S.scenarioBrent = +e.target.value;
-  document.querySelectorAll(".preset").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".preset").forEach(p => {
+    p.classList.toggle("active", +p.dataset.brent === S.scenarioBrent);
+  });
   scheduleRender();
 });
 

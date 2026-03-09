@@ -546,7 +546,7 @@ svg {
 
 @media (max-width: 600px) {
   .page { padding: 12px 12px 40px; }
-  .metrics-row { grid-template-columns: 1fr; }
+  .metrics-row, .scenario-metrics { grid-template-columns: repeat(2, 1fr); }
   .h2h-header, .h2h-row {
     grid-template-columns: 1fr 100px 100px;
   }
